@@ -12,6 +12,7 @@ import javax.security.auth.login.AccountNotFoundException;
 import javax.security.auth.login.FailedLoginException;
 import javax.validation.constraints.NotNull;
 import java.security.GeneralSecurityException;
+import java.util.List;
 
 /**
  * Created by Jeng on 2015/10/17.
@@ -21,8 +22,7 @@ public class DefaultDatabaseAuthenticationHandler extends AbstractJdbcUsernamePa
     @NotNull
     private String sql;
 
-    @NotNull
-    private SaltSource saltSource;
+
 
     /**
      * Authenticates a username/password credential by an arbitrary strategy.
@@ -38,34 +38,33 @@ public class DefaultDatabaseAuthenticationHandler extends AbstractJdbcUsernamePa
             throws GeneralSecurityException, PreventedException {
         final String username = credential.getUsername();
         final String password = credential.getPassword();
-        String salt = (String) saltSource.getSalt(credential);
-        String encryptedPassword = MD5Utils.encrypt(password, salt);
+        String plain = Encodes.unescapeHtml(password);
+        byte[] salt = Digests.generateSalt(8);
+        byte[] hashPassword = Digests.sha1(plain.getBytes(), salt, 1024);
+        String encryptedPassword = Encodes.encodeHex(hashPassword);
+//        String salt = (String) saltSource.getSalt(credential);
+//        String encryptedPassword = MD5Utils.encrypt(password, salt);
         try {
-            final String dbPassword = getJdbcTemplate().queryForObject(this.sql, String.class, username, username, username);
-            if (!dbPassword.equals(encryptedPassword)) {
+            String e = (String)this.getJdbcTemplate().queryForObject(this.sql, String.class, new Object[]{username});
+            if(!e.equals(encryptedPassword)) {
                 throw new FailedLoginException("Password does not match value on record.");
             }
-        } catch (final IncorrectResultSizeDataAccessException e) {
-            if (e.getActualSize() == 0) {
+        } catch (IncorrectResultSizeDataAccessException var5) {
+            if(var5.getActualSize() == 0) {
                 throw new AccountNotFoundException(username + " not found with SQL query");
-            } else {
-                throw new FailedLoginException("Multiple records found for " + username);
             }
-        } catch (final DataAccessException e) {
-            throw new PreventedException("SQL exception while executing query for " + username, e);
+
+            throw new FailedLoginException("Multiple records found for " + username);
+        } catch (DataAccessException var6) {
+            throw new PreventedException("SQL exception while executing query for " + username, var6);
         }
-        return createHandlerResult(credential, new SimplePrincipal(username), null);
+
+        return this.createHandlerResult(credential, new SimplePrincipal(username), (List)null);
     }
 
     public void setSql(String sql) {
         this.sql = sql;
     }
 
-    public SaltSource getSaltSource() {
-        return saltSource;
-    }
 
-    public void setSaltSource(SaltSource saltSource) {
-        this.saltSource = saltSource;
-    }
 }
