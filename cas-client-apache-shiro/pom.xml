@@ -11,7 +11,16 @@
     <name>CAS Client for Apache Shiro</name>
     <artifactId>cas-client-apache-shiro</artifactId>
     <packaging>war</packaging>
+    <!-- 设定主仓库，按设定顺序进行查找。 -->
+    <repositories>
 
+        <repository>
+            <id>aliyun-repos</id>
+            <name>aliyun Repository</name>
+            <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+        </repository>
+
+    </repositories>
     <dependencies>
         <dependency>
             <groupId>org.apache.shiro</groupId>
